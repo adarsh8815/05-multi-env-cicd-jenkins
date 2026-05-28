@@ -1,0 +1,67 @@
+# Production Kubernetes values
+replicaCount: 5
+
+image:
+  repository: registry.company.com/myapp
+  tag: latest
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 5
+  maxReplicas: 50
+  targetCPUUtilizationPercentage: 60
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 5
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 3
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app: myapp
+        topologyKey: kubernetes.io/hostname
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app: myapp
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: api.myapp.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: myapp-tls
+      hosts:
+        - api.myapp.com
